@@ -1,0 +1,41 @@
+{
+  // Realtor listings dashboard — Cloudflare Worker (API) + D1 (storage) + static assets (UI)
+  "name": "realestate-dashboard",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+
+  // Static dashboard is served from ./public. Any path that is NOT a static file
+  // (i.e. /api/*) falls through to the Worker's fetch handler below.
+  "assets": { "directory": "./public" },
+
+  // D1 database binding. database_id is filled in by the deploy script after
+  // `wrangler d1 create realestate`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "realestate",
+      "database_id": "66fe261d-f632-4554-a64b-0526c05a0ff7"
+    }
+  ],
+
+  // Custom domain on the creativeconquests.online zone (same CF account).
+  // workers.dev URL keeps working alongside it.
+  "routes": [
+    { "pattern": "realestate.creativeconquests.online", "custom_domain": true }
+  ],
+
+  // Cities the cron refreshes from RentCast: "City,ST;City,ST".
+  // Denver Metro, full coverage: 16 cities x daily = ~480 calls/mo, sized for
+  // the RentCast Foundation tier ($74/mo, 1000 calls) — the account must be
+  // upgraded or RentCast itself will refuse after its free 50.
+  "vars": {
+    "CITIES": "Denver,CO;Aurora,CO;Lakewood,CO;Arvada,CO;Westminster,CO;Thornton,CO;Centennial,CO;Boulder,CO;Broomfield,CO;Littleton,CO;Englewood,CO;Wheat Ridge,CO;Golden,CO;Parker,CO;Castle Rock,CO;Commerce City,CO",
+    "RENTCAST_MONTHLY_CAP": "1000"
+  },
+
+  // Daily 13:00 UTC (07:00 Denver) = RentCast listings refresh.
+  // Monday 14:00 UTC = county off-market lead refresh (free public ArcGIS data).
+  "triggers": { "crons": ["0 13 * * *", "0 14 * * 1"] },
+
+  "observability": { "enabled": true }
+}
